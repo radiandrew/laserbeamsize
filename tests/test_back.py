@@ -17,21 +17,12 @@ def test_basic_subtraction():
     assert np.all(np.isclose(result, expected, atol=1e-5))
 
 
-def test_negative_subtraction_iso_false():
-    original = np.array([[5, 10, 15], [10, 15, 20]], dtype=float)
-    background = np.array([[10, 15, 20], [15, 20, 25]], dtype=float)
-    expected = np.array([[0, 0, 0], [0, 0, 0]], dtype=float)
-
-    result = lbs.subtract_background_image(original, background, iso_noise=False)
-    assert np.all(np.isclose(result, expected, atol=1e-5))
-
-
-def test_negative_subtraction_iso_true():
+def test_negative_subtraction():
     original = np.array([[5, 10, 15], [10, 15, 20]], dtype=float)
     background = np.array([[10, 15, 20], [15, 20, 25]], dtype=float)
     expected = np.array([[-5, -5, -5], [-5, -5, -5]], dtype=float)
 
-    result = lbs.subtract_background_image(original, background, iso_noise=True)
+    result = lbs.subtract_background_image(original, background)
     assert np.all(np.isclose(result, expected, atol=1e-5))
 
 
@@ -39,7 +30,7 @@ def test_subtraction_type_float():
     original = np.array([[10, 15, 20], [30, 35, 40]], dtype=np.uint8)
     background = np.array([[5, 5, 5], [5, 5, 5]], dtype=np.uint8)
 
-    result = lbs.subtract_background_image(original, background, iso_noise=False)
+    result = lbs.subtract_background_image(original, background)
     assert result.dtype == float
 
 
@@ -79,13 +70,13 @@ def test_subtract_constant_type_float():
     assert result.dtype == np.float64
 
 
-# background_in_corners
+# corner_background
 def test_corner_known_mean_stdev():
     image = np.array([[1, 2, 3, 4],
                       [5, 6, 7, 8],
                       [9, 10, 11, 12],
                       [13, 14, 15, 16]])
-    corner_mean, corner_stdev = lbs.background_in_corners(image, 0.25)
+    corner_mean, corner_stdev = lbs.corner_background(image, 0.25)
     # considering the corners: 1, 4, 13, 16
     expected_mean = np.mean([1, 4, 13, 16])
     expected_stdev = np.std([1, 4, 13, 16])
@@ -97,21 +88,21 @@ def test_corner_zero_corner_fraction():
     image = np.array([[1, 2, 3],
                       [4, 5, 6],
                       [7, 8, 9]])
-    corner_mean, corner_stdev = lbs.background_in_corners(image, 0)
+    corner_mean, corner_stdev = lbs.corner_background(image, 0)
     assert corner_mean == 0
     assert corner_stdev == 0
 
 
 def test_corner_varying_corner_fraction():
     image = np.ones((100, 100))  # uniform image
-    corner_mean, corner_stdev = lbs.background_in_corners(image, 0.05)
+    corner_mean, corner_stdev = lbs.corner_background(image, 0.05)
     assert corner_mean == 1
     assert corner_stdev == 0
 
 
 def test_corner_uniform_image():
     image = np.ones((100, 100))
-    corner_mean, corner_stdev = lbs.background_in_corners(image, 0.05)
+    corner_mean, corner_stdev = lbs.corner_background(image, 0.05)
     assert corner_mean == 1
     assert corner_stdev == 0
 
@@ -119,8 +110,8 @@ def test_corner_uniform_image():
 def test_corner_image_data_types():
     image_float = np.ones((100, 100), dtype=float)
     image_int = np.ones((100, 100), dtype=int)
-    corner_mean_float, corner_stdev_float = lbs.background_in_corners(image_float, 0.05)
-    corner_mean_int, corner_stdev_int = lbs.background_in_corners(image_int, 0.05)
+    corner_mean_float, corner_stdev_float = lbs.corner_background(image_float, 0.05)
+    corner_mean_int, corner_stdev_int = lbs.corner_background(image_int, 0.05)
     assert corner_mean_float == corner_mean_int == 1
     assert corner_stdev_float == corner_stdev_int == 0
 
@@ -128,7 +119,7 @@ def test_corner_image_data_types():
 def test_corner_test_image():
     h, v, xc, yc, dx, dy, phi = 400, 400, 200, 200, 50, 100, 0
     image = lbs.image_tools.create_test_image(h, v, xc, yc, dx, dy, phi)
-    corner_mean, corner_stdev = lbs.background_in_corners(image)
+    corner_mean, corner_stdev = lbs.corner_background(image)
     assert corner_mean == 0
     assert corner_stdev == 0
 
@@ -137,7 +128,7 @@ def test_corner_test_image_with_noise():
     h, v, xc, yc, dx, dy, phi = 400, 400, 200, 200, 50, 100, 0
     noise = 20
     image = lbs.image_tools.create_test_image(h, v, xc, yc, dx, dy, phi, noise=noise)
-    corner_mean, corner_stdev = lbs.background_in_corners(image)
+    corner_mean, corner_stdev = lbs.corner_background(image)
     assert np.isclose(corner_mean, noise, rtol=0.1)
     assert np.isclose(corner_stdev, np.sqrt(noise), rtol=0.1)
 

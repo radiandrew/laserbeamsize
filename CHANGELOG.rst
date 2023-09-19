@@ -1,11 +1,26 @@
 Changelog
 =========
 
+2.0.3
+-----
+* readthedocs does not do well with new module names
+
+2.0.2
+-----
+* splitting monolithic m2.py
+* added tests for functions in gaussian.py
+* improved docstrings in gaussian.py
+* improved module docstrings in m2_fit and m2_display
+
+2.0.1
+-----
+* trying to get conda release working
+
 2.0.0
 -----
-* change default background removal
-* add possibility for negative pixel values after background removal
-* add some basic testing
+* change default background removal to match ISO recommendation
+* split monolithic laserbeamsize module in separate modules
+* rationalized functions names
 * add citation stuff
 * add github actions to test and update citation
 * improve readme so images work on pypi.org

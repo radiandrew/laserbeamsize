@@ -10,28 +10,25 @@ Full documentation is available at <https://laserbeamsize.readthedocs.io>
 
 Simple and fast calculation of beam sizes from a single monochrome image based
 on the ISO 11146 method of variances.  Some effort has been made to make
-the algorithm less sensitive to background offset and noise.
+the algorithm automatically handle background noise.
 
 Finding the center and diameters of a beam in a monochrome image is simple::
 
-    >>>> import imageio
-    >>>> import numpy as np
-    >>>> import laserbeamsize as lbs
-    >>>> beam_image = imageio.imread("t-hene.pgm")
-    >>>> x, y, dx, dy, phi = lbs.beam_size(beam_image)
-    >>>> print("The center of the beam ellipse is at (%.0f, %.0f)" % (x, y))
-    >>>> print("The ellipse diameter (closest to horizontal) is %.0f pixels" % dx)
-    >>>> print("The ellipse diameter (closest to   vertical) is %.0f pixels" % dy)
-    >>>> print("The ellipse is rotated %.0f° ccw from the horizontal" % (phi * 180/3.1416))
+    >>> import imageio.v3 as iio
+    >>> import laserbeamsize as lbs
+    >>>
+    >>> file = "https://github.com/scottprahl/laserbeamsize/raw/master/docs/t-hene.pgm"
+    >>> image = iio.imread(file)
+    >>>
+    >>> x, y, dx, dy, phi = lbs.beam_size(image)
+    >>> print("The center of the beam ellipse is at (%.0f, %.0f)" % (x, y))
+    >>> print("The ellipse diameter (closest to horizontal) is %.0f pixels" % dx)
+    >>> print("The ellipse diameter (closest to   vertical) is %.0f pixels" % dy)
+    >>> print("The ellipse is rotated %.0f° ccw from the horizontal" % (phi * 180/3.1416))
 """
 
 import numpy as np
-# import matplotlib.pyplot as plt
-# from matplotlib.colors import LinearSegmentedColormap
-import laserbeamsize.background as back
-# import laserbeamsize.image_tools as tools
-
-from laserbeamsize.masks import rotated_rect_mask
+import laserbeamsize as lbs
 
 __all__ = ('basic_beam_size',
            'beam_size',
@@ -50,6 +47,8 @@ def basic_beam_size(original):
 
     FWIW, this implementation is roughly 800X faster than one that finds
     the moments using for loops.
+
+    When background noise dominates then a diameter of 1 is returned.
 
     Args:
         image: 2D array of image with beam spot
@@ -93,9 +92,13 @@ def basic_beam_size(original):
         phi = 0.5 * np.arctan(2 * xy / diff)
 
     # finally, the major and minor diameters
-    dx = np.sqrt(8 * (xx + yy + disc))
-    # include abs for when xx+yy just slightly smaller than disc
-    dy = np.sqrt(8 * abs(xx + yy - disc))
+    dx = 1
+    dy = 1
+    if xx + yy + disc > 0:  # fails when negative noise dominates
+        dx = np.sqrt(8 * (xx + yy + disc))
+
+    if xx + yy - disc > 0:
+        dy = np.sqrt(8 * (xx + yy - disc))
 
     # phi is negative because image is inverted
     phi *= -1
@@ -140,7 +143,7 @@ def beam_size(image,
               nT=3,
               max_iter=25,
               phi=None,
-              iso_noise=False):
+              iso_noise=True):
     """
     Determine beam parameters in an image with noise.
 
@@ -184,19 +187,18 @@ def beam_size(image,
     """
     _validate_inputs(image, mask_diameters, corner_fraction, nT, max_iter, phi)
 
-    # remove background to make initial guess at beam sizes
-    image_no_bkgnd = back.subtract_image_background(image,
-                                                    corner_fraction=corner_fraction,
-                                                    nT=nT,
-                                                    iso_noise=False)
+    # zero background for initial guess at beam size
+    image_no_bkgnd = lbs.subtract_iso_background(image,
+                                                 corner_fraction=corner_fraction,
+                                                 nT=nT,
+                                                 iso_noise=False)
     xc, yc, dx, dy, phi_ = basic_beam_size(image_no_bkgnd)
 
-    # remove background using iso if requested
-    if iso_noise:
-        image_no_bkgnd = back.subtract_image_background(image,
-                                                        corner_fraction=corner_fraction,
-                                                        nT=nT,
-                                                        iso_noise=True)
+    if iso_noise:  # follow iso background guidelines (positive & negative bkgnd values)
+        image_no_bkgnd = lbs.subtract_iso_background(image,
+                                                     corner_fraction=corner_fraction,
+                                                     nT=nT,
+                                                     iso_noise=True)
 
     for _iteration in range(1, max_iter):
 
@@ -207,7 +209,7 @@ def beam_size(image,
         xc2, yc2, dx2, dy2 = xc, yc, dx, dy
 
         # create a mask so only values within the mask are used
-        mask = rotated_rect_mask(image, xc, yc, dx, dy, phi_, mask_diameters)
+        mask = lbs.rotated_rect_mask(image, xc, yc, dx, dy, phi_, mask_diameters)
         masked_image = np.copy(image_no_bkgnd)
 
         # zero values outside mask (rotation allows mask pixels to differ from 0 or 1)
@@ -215,21 +217,6 @@ def beam_size(image,
 
         # find the new parameters
         xc, yc, dx, dy, phi_ = basic_beam_size(masked_image)
-
-#         xx,yy = tools.rotated_rect_arrays(xc, yc, dx, dy, phi_, mask_diameters)
-#         xe,ye = tools.ellipse_arrays(xc, yc, dx, dy, phi_)
-#         plt.imshow(masked_image)
-#         plt.plot(xx,yy)
-#         plt.plot(xe,ye)
-#         plt.title('iteration %d' % _iteration)
-#         plt.show()
-#
-#         print('iteration %d' % _iteration)
-#         print("    old  new")
-#         print("x  %4d %4d" % (xc2, xc))
-#         print("y  %4d %4d" % (yc2, yc))
-#         print("dx %4d %4d" % (dx2, dx))
-#         print("dy %4d %4d" % (dy2, dy))
 
         if abs(xc - xc2) < 1 and abs(yc - yc2) < 1 and abs(dx - dx2) < 1 and abs(dy - dy2) < 1:
             break

@@ -1,9 +1,3 @@
-HTMLOPTS    ?=
-PDFOPTS     ?= 
-SPHINXBUILD   ?= sphinx-build
-SOURCEDIR     = docs
-BUILDDIR      = docs/_build
-
 test:
 	pytest tests/test_back.py
 	pytest tests/test_masks.py
@@ -12,44 +6,48 @@ test:
 	pytest tests/test_no_noise.py
 	pytest tests/test_noise.py
 	pytest tests/test_iso_noise.py
+	pytest tests/test_gaussian.py
 
 html:
-	$(SPHINXBUILD) -b html "$(SOURCEDIR)" "$(BUILDDIR)" $(HTMLOPTS)
+	cd docs && python -m sphinx -T -E -b html -d _build/doctrees -D language=en . _build
 	open docs/_build/index.html
 
-pdf:
-	$(SPHINXBUILD) -b latex "$(SOURCEDIR)" "$(BUILDDIR)"  $(PDFOPTS)
-
 lint:
+	-pylint laserbeamsize/__init__.py
+	-pylint laserbeamsize/analysis.py
 	-pylint laserbeamsize/background.py
+	-pylint laserbeamsize/display.py
+	-pylint laserbeamsize/gaussian.py
 	-pylint laserbeamsize/masks.py
 	-pylint laserbeamsize/image_tools.py
-	-pylint laserbeamsize/analysis.py
-	-pylint laserbeamsize/display.py
-	-pylint laserbeamsize/m2.py
-	-pylint laserbeamsize/__init__.py
-#	-pylint tests/test_back.py
-#	-pylint tests/test_masks.py
-#	-pylint tests/test_tools.py
-#	-pylint tests/test_basic_beam_size.py
-#	-pylint tests/test_no_noise.py
-#	-pylint tests/test_noise.py
+	-pylint laserbeamsize/m2_fit.py
+	-pylint laserbeamsize/m2_display.py
+	-pylint tests/test_all_notebooks.py
+
 
 doccheck:
-	-pydocstyle laserbeamsize/background.py
-	-pydocstyle laserbeamsize/masks.py
-	-pydocstyle laserbeamsize/image_tools.py
-	-pydocstyle laserbeamsize/analysis.py
-	-pydocstyle laserbeamsize/display.py
-	-pydocstyle laserbeamsize/m2.py
 	-pydocstyle laserbeamsize/__init__.py
+	-pydocstyle laserbeamsize/analysis.py
+	-pydocstyle laserbeamsize/background.py
+	-pydocstyle laserbeamsize/display.py
+	-pydocstyle laserbeamsize/gaussian.py
+	-pydocstyle laserbeamsize/image_tools.py
+	-pydocstyle laserbeamsize/masks.py
+	-pydocstyle laserbeamsize/m2_fit.py
+	-pydocstyle laserbeamsize/m2_display.py
 
 rstcheck:
 	-rstcheck README.rst
 	-rstcheck CHANGELOG.rst
 	-rstcheck docs/index.rst
 	-rstcheck docs/changelog.rst
-	-rstcheck --ignore-directives automodapi docs/laserbeamsize.rst
+	-rstcheck --ignore-directives automodapi docs/analysis.rst
+	-rstcheck --ignore-directives automodapi docs/background.rst
+	-rstcheck --ignore-directives automodapi docs/display.rst
+	-rstcheck --ignore-directives automodapi docs/image_tools.rst
+	-rstcheck --ignore-directives automodapi docs/m2_display.rst
+	-rstcheck --ignore-directives automodapi docs/m2_fit.rst
+	-rstcheck --ignore-directives automodapi docs/masks.rst
 
 rcheck:
 	make clean
@@ -62,8 +60,13 @@ rcheck:
 	make html
 	check-manifest
 	pyroma -d .
+	pytest --verbose tests/test_all_notebooks.py
+
 
 clean:
+	rm -rf .eggs
+	rm -rf .pytest_cache
+	rm -rf .virtual_documents
 	rm -rf __pycache__
 	rm -rf dist
 	rm -rf laserbeamsize.egg-info
@@ -73,8 +76,6 @@ clean:
 	rm -rf docs/.ipynb_checkpoints
 	rm -rf tests/__pycache__
 	rm -rf build
-	rm -rf .eggs
-	rm -rf .pytest_cache
 
 
 .PHONY: clean rcheck html notecheck pycheck doccheck test rstcheck
